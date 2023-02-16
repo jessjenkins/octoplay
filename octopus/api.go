@@ -8,10 +8,32 @@ import (
 	"time"
 )
 
-const api_url = "https://api.octopus.energy/"
-
 type API struct {
-	OctopusAPIKey string
+	url    *url.URL
+	client http.Client
+}
+
+type rt string
+
+func New(apiurl, apiKey string) (*API, error) {
+	u, err := url.Parse(apiurl)
+	if err != nil {
+		return nil, err
+	}
+
+	return &API{
+		url: u,
+		client: http.Client{
+			Transport: rt(apiKey),
+			Timeout:   time.Minute,
+		},
+	}, nil
+}
+
+type RequestOptions struct {
+	PeriodFrom *time.Time
+	PeriodTo   *time.Time
+	Page       *int
 }
 
 func (api *API) GetGSP(mpan string) (string, error) {
@@ -28,26 +50,9 @@ type MeterPoint struct {
 
 func (api *API) GetMeterPoint(mpan string) (*MeterPoint, error) {
 	mp := &MeterPoint{}
+	mpUrl := api.url.JoinPath("v1/electricity-meter-points/", mpan)
 
-	mpUrl, err := url.JoinPath(api_url, "v1/electricity-meter-points/", mpan)
-	if err != nil {
-		return nil, err
-	}
-
-	client := api.getClient()
-	res, err := client.Get(mpUrl)
-	if err != nil {
-		return nil, err
-	}
-
-	//TODO check response status, assuming success for now
-
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	err = json.Unmarshal(body, mp)
+	err := api.get(mpUrl.String(), mp)
 	if err != nil {
 		return nil, err
 	}
@@ -55,14 +60,28 @@ func (api *API) GetMeterPoint(mpan string) (*MeterPoint, error) {
 	return mp, nil
 }
 
-func (api *API) getClient() http.Client {
-	return http.Client{
-		Transport: api,
-		Timeout:   time.Minute,
-	}
+func (r rt) RoundTrip(req *http.Request) (*http.Response, error) {
+	req.SetBasicAuth(string(r), "")
+	return http.DefaultTransport.RoundTrip(req)
 }
 
-func (api *API) RoundTrip(req *http.Request) (*http.Response, error) {
-	req.SetBasicAuth(api.OctopusAPIKey, "")
-	return http.DefaultTransport.RoundTrip(req)
+func (api *API) get(url string, r interface{}) error {
+	res, err := api.client.Get(url)
+	if err != nil {
+		return err
+	}
+
+	//TODO check response status, assuming success for now
+
+	body, err := io.ReadAll(res.Body)
+	if err != nil {
+		return err
+	}
+
+	err = json.Unmarshal(body, r)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

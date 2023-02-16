@@ -8,6 +8,8 @@ import (
 	"os"
 )
 
+const api_url = "https://api.octopus.energy/"
+
 func main() {
 	fmt.Println("Hello octopus!")
 
@@ -16,8 +18,13 @@ func main() {
 	electricityMPAN := os.Getenv("ELECTRICITY_MPAN")
 	electricitySerial := os.Getenv("ELECTRICITY_SERIAL")
 
+	api, err := octopus.New(api_url, octopusAPIKey)
+	if err != nil {
+		log.Fatalf("fatal run error occured : %v", err)
+	}
+
 	compare := fetch.Compare{
-		API:               &octopus.API{OctopusAPIKey: octopusAPIKey},
+		API:               api,
 		ElectricityMPAN:   electricityMPAN,
 		ElectricitySerial: electricitySerial,
 	}
@@ -26,5 +33,5 @@ func main() {
 	if err != nil {
 		log.Fatalf("fatal run error occured : %v", err)
 	}
-	fmt.Printf("Result: %v", *result)
+	fmt.Printf("Result: %+v\n", *result)
 }
