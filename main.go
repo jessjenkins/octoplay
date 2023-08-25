@@ -33,5 +33,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("fatal run error occured : %v", err)
 	}
-	fmt.Printf("Result: %+v\n", *result)
+	_ = result
+	//	fmt.Printf("Result: %+v\n", *result)
 }
